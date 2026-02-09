@@ -1,6 +1,7 @@
 FROM python:3.11-slim
 
-WORKDIR /app
+# Install uv from the official image
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -8,14 +9,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv
-RUN pip install --no-cache-dir uv
+WORKDIR /app
 
-# Copy project files
+# Enable bytecode compilation and copy mode for cache mounts
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
+
+# Install dependencies first (cached layer)
+COPY pyproject.toml uv.lock README.md ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-install-project --extra all
+
+# Copy project files and install the project
 COPY . .
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --extra all
 
-# Install project dependencies using uv
-RUN uv sync
+# Add venv to PATH
+ENV PATH="/app/.venv/bin:$PATH"
 
-# Default command
 CMD ["/bin/bash"]
