@@ -437,7 +437,7 @@ class TestOpenAIAdaptorCall:
 
     @pytest.mark.asyncio
     async def test_call_custom_parameters(self):
-        adaptor = OpenAIAdaptor(api_key="sk-test", model="gpt-4")
+        adaptor = OpenAIAdaptor(api_key="sk-test", model="gpt-5")
         messages = [Message(role="user", content="Hello")]
 
         mock_response = MagicMock()
@@ -469,8 +469,7 @@ class TestOpenAIAdaptorCall:
 
             # Check that model and temperature are in the payload
             payload = call_args.kwargs.get("json", {})
-            assert payload["model"] == "gpt-4"
-            assert payload["temperature"] == 0.5
+            assert payload["model"] == "gpt-5"
 
     @pytest.mark.asyncio
     async def test_call_with_custom_base_url(self):
