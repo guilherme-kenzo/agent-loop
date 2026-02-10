@@ -17,12 +17,12 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 # Install dependencies first (cached layer)
 COPY pyproject.toml uv.lock README.md ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-install-project --extra all
+    uv sync --locked --no-install-project --extra all --extra tui
 
 # Copy project files and install the project
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --extra all
+    uv sync --locked --extra all --extra tui
 
 # Add venv to PATH
 ENV PATH="/app/.venv/bin:$PATH"
