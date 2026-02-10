@@ -155,8 +155,8 @@ def main() -> int:
     # ── Run ───────────────────────────────────────────────────────────────
 
     query = (
-        "What does current research say about the optimal rest period "
-        "between sets for muscle hypertrophy?"
+        "What does current research say the optimal protein intake period "
+        "is for muscle growth after a workout? Please search for recent studies."
     )
 
     print(f"Query: {query}")

@@ -7,5 +7,4 @@ test: build
     docker run --rm agent-loop pytest
 
 # Run an example by name inside the container (e.g., `just example minimal_agent`)
-example name: build
-    docker run --rm --env-file .env agent-loop uv run python examples/{{name}}.py
+example name: docker run --rm --env-file .env agent-loop uv run python examples/{{name}}.py
