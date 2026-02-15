@@ -104,13 +104,51 @@ class GeminiAdaptor(ModelAdaptor):
     def _convert_tools(self, tools: list[Tool]) -> types.Tool:
         declarations = []
         for tool in tools:
-            schema = tool.schema()
+            schema = self._clean_schema(tool.schema())
             declarations.append(types.FunctionDeclaration(
                 name=tool.name,
                 description=tool.description,
                 parameters=schema,
             ))
         return types.Tool(function_declarations=declarations)
+
+    def _clean_schema(self, schema: dict) -> dict:
+        """Remove JSON Schema fields that Gemini doesn't support.
+
+        Pydantic generates fields like additionalProperties, anyOf, $defs,
+        title, default, etc. that the Gemini API rejects.
+        """
+        if not isinstance(schema, dict):
+            return schema
+
+        UNSUPPORTED_KEYS = {
+            "additionalProperties", "additional_properties",
+            "$defs", "title", "default",
+        }
+
+        cleaned = {}
+        for key, value in schema.items():
+            if key in UNSUPPORTED_KEYS:
+                continue
+
+            # anyOf: [{"type": "X"}, {"type": "null"}] → just use the non-null type
+            if key == "anyOf" or key == "any_of":
+                non_null = [s for s in value if s.get("type") != "null"]
+                if len(non_null) == 1:
+                    cleaned.update(self._clean_schema(non_null[0]))
+                continue
+
+            if isinstance(value, dict):
+                cleaned[key] = self._clean_schema(value)
+            elif isinstance(value, list):
+                cleaned[key] = [
+                    self._clean_schema(item) if isinstance(item, dict) else item
+                    for item in value
+                ]
+            else:
+                cleaned[key] = value
+
+        return cleaned
 
     def _parse_response(self, response) -> ModelResponse:
         if response.function_calls:
