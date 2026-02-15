@@ -16,6 +16,11 @@ try:
 except ImportError:
     pass
 
+try:
+    from agent_loop.mcp import MCPConnection, MCPTool
+except ImportError:
+    pass
+
 from agent_loop.agent import Agent
 from agent_loop.exceptions import (
     AgentLoopError,
@@ -58,6 +63,9 @@ __all__ = [
     "Tool",
     "ToolCall",
     "ToolInput",
+    # MCP (optional)
+    "MCPConnection",
+    "MCPTool",
     # Hooks
     "HookRegistry",
     "HookEvent",
