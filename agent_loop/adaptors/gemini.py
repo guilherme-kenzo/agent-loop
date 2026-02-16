@@ -72,12 +72,15 @@ class GeminiAdaptor(ModelAdaptor):
                     parts.append(types.Part(text=msg.content))
                 if msg.tool_calls:
                     for tc in msg.tool_calls:
-                        parts.append(types.Part(
-                            function_call=types.FunctionCall(
+                        part_kwargs = {
+                            "function_call": types.FunctionCall(
                                 name=tc.tool_name,
                                 args=tc.arguments,
                             ),
-                        ))
+                        }
+                        if getattr(tc, "thought_signature", None) is not None:
+                            part_kwargs["thought_signature"] = tc.thought_signature
+                        parts.append(types.Part(**part_kwargs))
                 contents.append(types.Content(role="model", parts=parts))
             elif msg.role == "tool":
                 # Find tool name from tool_call_id by looking back through messages
@@ -163,13 +166,26 @@ class GeminiAdaptor(ModelAdaptor):
 
         return cleaned
 
+    def _extract_thought_signature(self, response) -> bytes | None:
+        """Extract thought_signature from the first function call part."""
+        try:
+            for candidate in response.candidates:
+                for part in candidate.content.parts:
+                    if part.function_call and getattr(part, "thought_signature", None):
+                        return part.thought_signature
+        except (AttributeError, TypeError):
+            pass
+        return None
+
     def _parse_response(self, response) -> ModelResponse:
         if response.function_calls:
             fc = response.function_calls[0]
+            thought_sig = self._extract_thought_signature(response)
             tool_call = ToolCall(
                 id=fc.id if hasattr(fc, "id") and fc.id else f"call_{fc.name}",
                 tool_name=fc.name,
                 arguments=dict(fc.args) if fc.args else {},
+                thought_signature=thought_sig,
             )
             return ModelResponse(
                 type="tool_call",

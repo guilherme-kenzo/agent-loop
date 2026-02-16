@@ -19,6 +19,7 @@ class ToolCall:
     result: str = ""
     error: Optional[str] = None
     timestamp: float = field(default_factory=time.time)
+    thought_signature: Optional[bytes] = None
 
 
 @dataclass
