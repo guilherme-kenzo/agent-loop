@@ -112,33 +112,46 @@ class GeminiAdaptor(ModelAdaptor):
             ))
         return types.Tool(function_declarations=declarations)
 
-    def _clean_schema(self, schema: dict) -> dict:
+    def _clean_schema(self, schema: dict, is_properties: bool = False) -> dict:
         """Remove JSON Schema fields that Gemini doesn't support.
 
         Pydantic generates fields like additionalProperties, anyOf, $defs,
-        title, default, etc. that the Gemini API rejects.
+        title, default, etc. that the Gemini API rejects. Only a subset of
+        OpenAPI 3.0 is supported: type, description, enum, items, properties,
+        required, nullable.
         """
         if not isinstance(schema, dict):
             return schema
 
-        UNSUPPORTED_KEYS = {
-            "additionalProperties", "additional_properties",
-            "$defs", "title", "default",
+        SUPPORTED_KEYS = {
+            "type", "description", "enum", "items",
+            "properties", "required", "nullable",
         }
 
         cleaned = {}
         for key, value in schema.items():
-            if key in UNSUPPORTED_KEYS:
+            # Inside "properties", keys are user-defined property names — keep all
+            if is_properties:
+                cleaned[key] = self._clean_schema(value) if isinstance(value, dict) else value
                 continue
 
-            # anyOf: [{"type": "X"}, {"type": "null"}] → just use the non-null type
-            if key == "anyOf" or key == "any_of":
+            # anyOf: [{"type": "X"}, {"type": "null"}] → type X + nullable
+            if key == "anyOf":
                 non_null = [s for s in value if s.get("type") != "null"]
+                has_null = any(s.get("type") == "null" for s in value)
                 if len(non_null) == 1:
-                    cleaned.update(self._clean_schema(non_null[0]))
+                    resolved = self._clean_schema(non_null[0])
+                    if has_null:
+                        resolved["nullable"] = True
+                    cleaned.update(resolved)
                 continue
 
-            if isinstance(value, dict):
+            if key not in SUPPORTED_KEYS:
+                continue
+
+            if key == "properties" and isinstance(value, dict):
+                cleaned[key] = self._clean_schema(value, is_properties=True)
+            elif isinstance(value, dict):
                 cleaned[key] = self._clean_schema(value)
             elif isinstance(value, list):
                 cleaned[key] = [
